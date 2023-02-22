@@ -1,7 +1,7 @@
 {
   "domain": "solareco",
   "name": "solareco",
-  "documentation": "https://www.example.com",
+  "documentation": "https://github.com/kub/homeassistant-solareco",
   "dependencies": [],
   "version": "1.0.0",
   "codeowners": [],
