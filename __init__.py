@@ -1,0 +1,1 @@
+"""SolarEco Sensor Platform"""
