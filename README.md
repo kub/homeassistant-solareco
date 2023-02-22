@@ -4,8 +4,8 @@
 - include following in `/config/configuration.yaml`:
 ```yaml
 sensor:
-  platform: solareco
-  host: 127.0.0.1 # solareco IP
-  port: 5000      # solareco port
-  poll_interval_seconds: 5 # how often should the integration query data form solareco
+  - platform: solareco
+    host: 127.0.0.1 # solareco IP
+    port: 5000      # solareco port
+    poll_interval_seconds: 5 # how often should the integration query data form solareco
 ```
