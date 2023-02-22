@@ -1,6 +1,7 @@
 ### Installation
 - create a new dir named `solareco` under `/config/custom_components` on your home assistant server
 - copy `manifest.json`, `sensor.py` and `__init__.py` to `/config/custom_components/solareco`
+- restart your home assistant
 - include following in `/config/configuration.yaml`:
 ```yaml
 sensor:
