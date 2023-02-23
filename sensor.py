@@ -1,6 +1,6 @@
 import logging
 import telnetlib
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass, SensorDeviceClass
 from homeassistant.const import UnitOfTemperature, UnitOfPower, UnitOfElectricPotential, UnitOfElectricCurrent, \
@@ -22,7 +22,10 @@ SENSORS = {
     "voltage",
     "frequency",
     "energy",
-    "pulse_height"
+    "pulse_height",
+    "relay",
+    "fan",
+    "required_voltage"
 
 }
 
@@ -116,6 +119,9 @@ class SolarecoSensor(SensorEntity):
             return UnitOfEnergy.WATT_HOUR
         if self.variable == "pulse_height":
             return UnitOfTime.MICROSECONDS
+        if self.variable == "required_voltage":
+            return UnitOfElectricPotential.VOLT
+        return None
 
     @property
     def last_reset(self):
@@ -147,6 +153,14 @@ class SolarecoSensor(SensorEntity):
         if self.variable == "energy":
             self._state = self.sensor_connector.data['energy']
 
+        if self.variable == "relay":
+            self._state = self.sensor_connector.data['relay']
+
+        if self.variable == "fan":
+            self._state = self.sensor_connector.data['fan']
+
+        if self.variable == "required_voltage":
+            self._state = self.sensor_connector.data['required_voltage']
 
 
 class SensorConnector:
@@ -161,7 +175,10 @@ class SensorConnector:
             "power": None,
             "frequency": None,
             "energy": None,
-            "pulse_height": None
+            "pulse_height": None,
+            "relay": None,
+            "fan": None,
+            "required_voltage": None
         }
 
     def update(self):
@@ -170,6 +187,9 @@ class SensorConnector:
                 line = tn.read_until(b'\n').decode('ascii')
                 line_segments = line.split()
                 if len(line_segments) == 12:
+                    self.data['relay'] = line_segments[2][2:]
+                    self.data['fan'] = line_segments[3][2:]
+                    self.data['required_voltage'] = line_segments[4][2:]
                     self.data['voltage'] = line_segments[5][:-1]
                     self.data['current'] = line_segments[6][:-2]
                     self.data['power'] = line_segments[7][:-1]
