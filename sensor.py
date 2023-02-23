@@ -3,11 +3,12 @@ import telnetlib
 from datetime import timedelta
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass, SensorDeviceClass
-from homeassistant.const import Platform, UnitOfTemperature, UnitOfPower, UnitOfElectricPotential, UnitOfElectricCurrent
+from homeassistant.const import UnitOfTemperature, UnitOfPower, UnitOfElectricPotential, UnitOfElectricCurrent, \
+    UnitOfEnergy, UnitOfFrequency, UnitOfTime
 from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.dispatcher import dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 SIGNAL = 'solareco'
 DOMAIN = 'solareco'
@@ -19,6 +20,10 @@ SENSORS = {
     "power",
     "current",
     "voltage",
+    "frequency",
+    "energy",
+    "pulse_height"
+
 }
 
 
@@ -75,6 +80,8 @@ class SolarecoSensor(SensorEntity):
 
     @property
     def state_class(self):
+        if self.variable == "energy":
+            return SensorStateClass.TOTAL_INCREASING
         return SensorStateClass.MEASUREMENT
 
     @property
@@ -87,6 +94,10 @@ class SolarecoSensor(SensorEntity):
             return SensorDeviceClass.CURRENT
         if self.variable == "voltage":
             return SensorDeviceClass.VOLTAGE
+        if self.variable == "frequency":
+            return SensorDeviceClass.FREQUENCY
+        if self.variable == "energy":
+            return SensorDeviceClass.ENERGY
         return None
 
     @property
@@ -99,6 +110,17 @@ class SolarecoSensor(SensorEntity):
             return UnitOfElectricCurrent.MILLIAMPERE
         if self.variable == "voltage":
             return UnitOfElectricPotential.VOLT
+        if self.variable == "frequency":
+            return UnitOfFrequency.HERTZ
+        if self.variable == "energy":
+            return UnitOfEnergy.WATT_HOUR
+        if self.variable == "pulse_height":
+            return UnitOfTime.MICROSECONDS
+
+    @property
+    def last_reset(self):
+        if self.variable == "energy":
+            return datetime.combine(datetime.today(), time.min)
         return None
 
     @callback
@@ -116,6 +138,16 @@ class SolarecoSensor(SensorEntity):
         if self.variable == "voltage":
             self._state = self.sensor_connector.data['voltage']
 
+        if self.variable == "frequency":
+            self._state = self.sensor_connector.data['frequency']
+
+        if self.variable == "pulse_height":
+            self._state = self.sensor_connector.data['pulse_height']
+
+        if self.variable == "energy":
+            self._state = self.sensor_connector.data['energy']
+
+
 
 class SensorConnector:
     def __init__(self, hass, solareco_host, solareco_port):
@@ -127,6 +159,9 @@ class SensorConnector:
             "voltage": None,
             "current": None,
             "power": None,
+            "frequency": None,
+            "energy": None,
+            "pulse_height": None
         }
 
     def update(self):
@@ -138,7 +173,10 @@ class SensorConnector:
                     self.data['voltage'] = line_segments[5][:-1]
                     self.data['current'] = line_segments[6][:-2]
                     self.data['power'] = line_segments[7][:-1]
+                    self.data['frequency'] = line_segments[8][:-2]
                     self.data['temperature'] = line_segments[9][:-1]
+                    self.data['pulse_height'] = line_segments[10][:-2]
+                    self.data['energy'] = line_segments[11][:-2]
                     _LOGGER.info("data: " + str(self.data))
                     dispatcher_send(self.hass, SIGNAL)
         except:
