@@ -84,7 +84,7 @@ class SolarecoSensor(SensorEntity):
     @property
     def state_class(self):
         if self.variable == "energy":
-            return SensorStateClass.TOTAL_INCREASING
+            return SensorStateClass.TOTAL
         return SensorStateClass.MEASUREMENT
 
     @property
