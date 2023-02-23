@@ -2,7 +2,7 @@ import logging
 import telnetlib
 from datetime import timedelta
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass, SensorDeviceClass
 from homeassistant.const import Platform, UnitOfTemperature, UnitOfPower, UnitOfElectricPotential, UnitOfElectricCurrent
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import dispatcher_send
@@ -74,6 +74,22 @@ class SolarecoSensor(SensorEntity):
         return self._state
 
     @property
+    def state_class(self):
+        return SensorStateClass.MEASUREMENT
+
+    @property
+    def device_class(self):
+        if self.variable == "temperature":
+            return SensorDeviceClass.TEMPERATURE
+        if self.variable == "power":
+            return SensorDeviceClass.POWER
+        if self.variable == "current":
+            return SensorDeviceClass.CURRENT
+        if self.variable == "voltage":
+            return SensorDeviceClass.VOLTAGE
+        return None
+
+    @property
     def native_unit_of_measurement(self):
         if self.variable == "temperature":
             return UnitOfTemperature.CELSIUS
@@ -83,6 +99,7 @@ class SolarecoSensor(SensorEntity):
             return UnitOfElectricCurrent.MILLIAMPERE
         if self.variable == "voltage":
             return UnitOfElectricPotential.VOLT
+        return None
 
     @callback
     def _async_update_data(self):
