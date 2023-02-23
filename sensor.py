@@ -22,7 +22,7 @@ SENSORS = {
     "voltage",
     "frequency",
     "energy",
-    "pulse_height",
+    "pulse_width",
     "relay",
     "fan",
     "required_voltage"
@@ -117,7 +117,7 @@ class SolarecoSensor(SensorEntity):
             return UnitOfFrequency.HERTZ
         if self.variable == "energy":
             return UnitOfEnergy.WATT_HOUR
-        if self.variable == "pulse_height":
+        if self.variable == "pulse_width":
             return UnitOfTime.MICROSECONDS
         if self.variable == "required_voltage":
             return UnitOfElectricPotential.VOLT
@@ -147,8 +147,8 @@ class SolarecoSensor(SensorEntity):
         if self.variable == "frequency":
             self._state = self.sensor_connector.data['frequency']
 
-        if self.variable == "pulse_height":
-            self._state = self.sensor_connector.data['pulse_height']
+        if self.variable == "pulse_width":
+            self._state = self.sensor_connector.data['pulse_width']
 
         if self.variable == "energy":
             self._state = self.sensor_connector.data['energy']
@@ -175,7 +175,7 @@ class SensorConnector:
             "power": None,
             "frequency": None,
             "energy": None,
-            "pulse_height": None,
+            "pulse_width": None,
             "relay": None,
             "fan": None,
             "required_voltage": None
@@ -195,7 +195,7 @@ class SensorConnector:
                     self.data['power'] = line_segments[7][:-1]
                     self.data['frequency'] = line_segments[8][:-2]
                     self.data['temperature'] = line_segments[9][:-1]
-                    self.data['pulse_height'] = line_segments[10][:-2]
+                    self.data['pulse_width'] = line_segments[10][:-2]
                     self.data['energy'] = line_segments[11][:-2]
                     _LOGGER.info("data: " + str(self.data))
                     dispatcher_send(self.hass, SIGNAL)
