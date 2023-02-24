@@ -1,6 +1,7 @@
 import logging
 import telnetlib
 from datetime import timedelta, datetime, time
+from typing import Callable, Any
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass, SensorDeviceClass
 from homeassistant.const import UnitOfTemperature, UnitOfPower, UnitOfElectricPotential, UnitOfElectricCurrent, \
@@ -13,21 +14,36 @@ from homeassistant.helpers.event import async_track_time_interval
 SIGNAL = 'solareco'
 DOMAIN = 'solareco'
 
-_LOGGER = logging.getLogger("solareco")
+_LOGGER = logging.getLogger('solareco')
 
-SENSORS = {
-    "temperature",
-    "power",
-    "current",
-    "voltage",
-    "frequency",
-    "energy",
-    "pulse_width",
-    "relay",
-    "fan",
-    "required_voltage"
 
-}
+class SolarecoSensorConfig:
+    def __init__(self, name,
+                 unit_of_measurement,
+                 device_class,
+                 data_transformation,
+                 state_class=SensorStateClass.MEASUREMENT,
+                 last_reset: Callable[[], Any] = lambda: None):
+        self.name = name
+        self.unit_of_measurement = unit_of_measurement
+        self.device_class = device_class
+        self.data_transformation = data_transformation
+        self.state_class = state_class
+        self.last_reset = last_reset
+
+
+SENSORS = [
+    SolarecoSensorConfig('relay', None, None, lambda data: data[2][2:]),
+    SolarecoSensorConfig('fan', None, None, lambda data: data[3][2:]),
+    SolarecoSensorConfig('required_voltage', UnitOfElectricPotential.VOLT, None, lambda data: data[4][2:]),
+    SolarecoSensorConfig('voltage', UnitOfElectricPotential.VOLT, SensorDeviceClass.VOLTAGE, lambda data: data[5][:-1]),
+    SolarecoSensorConfig('current', UnitOfElectricCurrent.MILLIAMPERE, SensorDeviceClass.CURRENT, lambda data: data[6][:-2]),
+    SolarecoSensorConfig('power', UnitOfPower.WATT, SensorDeviceClass.POWER, lambda data: data[7][:-1]),
+    SolarecoSensorConfig('frequency', UnitOfFrequency.HERTZ, SensorDeviceClass.FREQUENCY, lambda data: data[8][:-2]),
+    SolarecoSensorConfig('temperature', UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE, lambda data: data[9][:-1]),
+    SolarecoSensorConfig('pulse_width', UnitOfTime.MICROSECONDS, None, lambda data: data[10][:-2]),
+    SolarecoSensorConfig('energy', UnitOfEnergy.WATT_HOUR, SensorDeviceClass.ENERGY, lambda data: data[11][:-2], SensorStateClass.TOTAL, lambda: datetime.combine(datetime.today(), time.min)),
+]
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None) -> True:
@@ -44,17 +60,17 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     )
 
     entities: list[SensorEntity] = []
-    entities.extend([SolarecoSensor(sensor_connector, variable) for variable in SENSORS])
+    entities.extend([SolarecoSensor(sensor_connector, sensor_config) for sensor_config in SENSORS])
     async_add_entities(entities, True)
 
     hass.data.setdefault(DOMAIN, {})
 
 
 class SolarecoSensor(SensorEntity):
-    def __init__(self, sensor_connector, variable):
+    def __init__(self, sensor_connector, sensor_config: SolarecoSensorConfig):
         super().__init__()
         self.sensor_connector = sensor_connector
-        self.variable = variable
+        self.sensor_config = sensor_config
 
         self._state = None
         self._state_attributes = None
@@ -71,11 +87,11 @@ class SolarecoSensor(SensorEntity):
 
     @property
     def unique_id(self):
-        return f"{'solareco'} {self.variable}"
+        return f"{'solareco'} {self.sensor_config.name}"
 
     @property
     def name(self):
-        return f"{'solareco'} {self.variable}"
+        return f"{'solareco'} {self.sensor_config.name}"
 
     @property
     def native_value(self):
@@ -83,84 +99,23 @@ class SolarecoSensor(SensorEntity):
 
     @property
     def state_class(self):
-        if self.variable == "energy":
-            return SensorStateClass.TOTAL
-        return SensorStateClass.MEASUREMENT
+        return self.sensor_config.state_class
 
     @property
     def device_class(self):
-        if self.variable == "temperature":
-            return SensorDeviceClass.TEMPERATURE
-        if self.variable == "power":
-            return SensorDeviceClass.POWER
-        if self.variable == "current":
-            return SensorDeviceClass.CURRENT
-        if self.variable == "voltage":
-            return SensorDeviceClass.VOLTAGE
-        if self.variable == "frequency":
-            return SensorDeviceClass.FREQUENCY
-        if self.variable == "energy":
-            return SensorDeviceClass.ENERGY
-        return None
+        return self.sensor_config.device_class
 
     @property
     def native_unit_of_measurement(self):
-        if self.variable == "temperature":
-            return UnitOfTemperature.CELSIUS
-        if self.variable == "power":
-            return UnitOfPower.WATT
-        if self.variable == "current":
-            return UnitOfElectricCurrent.MILLIAMPERE
-        if self.variable == "voltage":
-            return UnitOfElectricPotential.VOLT
-        if self.variable == "frequency":
-            return UnitOfFrequency.HERTZ
-        if self.variable == "energy":
-            return UnitOfEnergy.WATT_HOUR
-        if self.variable == "pulse_width":
-            return UnitOfTime.MICROSECONDS
-        if self.variable == "required_voltage":
-            return UnitOfElectricPotential.VOLT
-        return None
+        return self.sensor_config.unit_of_measurement
 
     @property
     def last_reset(self):
-        if self.variable == "energy":
-            return datetime.combine(datetime.today(), time.min)
-        return None
+        return self.sensor_config.last_reset()
 
     @callback
     def _async_update_data(self):
-        _LOGGER.info(f'updating value of {self.variable}')
-        if self.variable == "temperature":
-            self._state = self.sensor_connector.data['temperature']
-
-        if self.variable == "power":
-            self._state = self.sensor_connector.data['power']
-
-        if self.variable == "current":
-            self._state = self.sensor_connector.data['current']
-
-        if self.variable == "voltage":
-            self._state = self.sensor_connector.data['voltage']
-
-        if self.variable == "frequency":
-            self._state = self.sensor_connector.data['frequency']
-
-        if self.variable == "pulse_width":
-            self._state = self.sensor_connector.data['pulse_width']
-
-        if self.variable == "energy":
-            self._state = self.sensor_connector.data['energy']
-
-        if self.variable == "relay":
-            self._state = self.sensor_connector.data['relay']
-
-        if self.variable == "fan":
-            self._state = self.sensor_connector.data['fan']
-
-        if self.variable == "required_voltage":
-            self._state = self.sensor_connector.data['required_voltage']
+        self._state = self.sensor_connector.data[self.sensor_config.name]
 
 
 class SensorConnector:
@@ -168,18 +123,7 @@ class SensorConnector:
         self.hass = hass
         self.solareco_host = solareco_host
         self.solareco_port = solareco_port
-        self.data = {
-            "temperature": None,
-            "voltage": None,
-            "current": None,
-            "power": None,
-            "frequency": None,
-            "energy": None,
-            "pulse_width": None,
-            "relay": None,
-            "fan": None,
-            "required_voltage": None
-        }
+        self.data = {SENSORS[i]: None for i in range(0, len(SENSORS))}
 
     def update(self):
         try:
@@ -187,17 +131,9 @@ class SensorConnector:
                 line = tn.read_until(b'\n').decode('ascii')
                 line_segments = line.split()
                 if len(line_segments) == 12:
-                    self.data['relay'] = line_segments[2][2:]
-                    self.data['fan'] = line_segments[3][2:]
-                    self.data['required_voltage'] = line_segments[4][2:]
-                    self.data['voltage'] = line_segments[5][:-1]
-                    self.data['current'] = line_segments[6][:-2]
-                    self.data['power'] = line_segments[7][:-1]
-                    self.data['frequency'] = line_segments[8][:-2]
-                    self.data['temperature'] = line_segments[9][:-1]
-                    self.data['pulse_width'] = line_segments[10][:-2]
-                    self.data['energy'] = line_segments[11][:-2]
-                    _LOGGER.info("data: " + str(self.data))
+                    for i in range(0, len(SENSORS)):
+                        sensor = SENSORS[i]
+                        self.data[sensor.name] = sensor.data_transformation(line_segments)
                     dispatcher_send(self.hass, SIGNAL)
         except:
             _LOGGER.error("can't connect to SolarEco")
