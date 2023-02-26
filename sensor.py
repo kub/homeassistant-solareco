@@ -22,14 +22,12 @@ class SolarecoSensorConfig:
                  unit_of_measurement,
                  device_class,
                  data_transformation,
-                 state_class=SensorStateClass.MEASUREMENT,
-                 last_reset: Callable[[], Any] = lambda: None):
+                 state_class=SensorStateClass.MEASUREMENT):
         self.name = name
         self.unit_of_measurement = unit_of_measurement
         self.device_class = device_class
         self.data_transformation = data_transformation
         self.state_class = state_class
-        self.last_reset = last_reset
 
 
 SENSORS = [
@@ -42,7 +40,7 @@ SENSORS = [
     SolarecoSensorConfig('frequency', UnitOfFrequency.HERTZ, SensorDeviceClass.FREQUENCY, lambda data: data[8][:-2]),
     SolarecoSensorConfig('temperature', UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE, lambda data: data[9][:-1]),
     SolarecoSensorConfig('pulse_width', UnitOfTime.MICROSECONDS, None, lambda data: data[10][:-2]),
-    SolarecoSensorConfig('energy', UnitOfEnergy.WATT_HOUR, SensorDeviceClass.ENERGY, lambda data: data[11][:-2], SensorStateClass.TOTAL, lambda: datetime.combine(datetime.today(), time.min)),
+    SolarecoSensorConfig('energy', UnitOfEnergy.WATT_HOUR, SensorDeviceClass.ENERGY, lambda data: data[11][:-2], SensorStateClass.TOTAL_INCREASING),
 ]
 
 
@@ -108,10 +106,6 @@ class SolarecoSensor(SensorEntity):
     @property
     def native_unit_of_measurement(self):
         return self.sensor_config.unit_of_measurement
-
-    @property
-    def last_reset(self):
-        return self.sensor_config.last_reset()
 
     @callback
     def _async_update_data(self):
